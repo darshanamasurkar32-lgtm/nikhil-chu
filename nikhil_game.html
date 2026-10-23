@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Nikhil Ka Safar</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#1b1f2a;color:#fff;font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;height:100vh;overflow:hidden;touch-action:manipulation}
+  #hud{padding:6px;font-size:16px;text-align:center}
+  canvas{background:linear-gradient(#8fd3ff,#d9f2ff 70%);width:100%;max-width:700px;border-radius:8px}
+  #controls{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;justify-content:center}
+  button{font-size:20px;padding:14px 20px;border:0;border-radius:12px;background:#ffd54a;color:#222;font-weight:bold}
+  button:active{background:#ffb300}
+  #act{background:#6be07a}
+  #box{display:none;margin-top:10px;width:92%;max-width:700px;text-align:center}
+  #box input{width:100%;font-size:18px;padding:12px;border-radius:10px;border:0;margin:6px 0}
+  #msg{min-height:22px;color:#ffe082;text-align:center;padding:4px}
+</style>
+</head>
+<body>
+<div id="hud"></div>
+<canvas id="c" width="700" height="320"></canvas>
+<div id="msg"></div>
+<div id="box">
+  <div id="prompt"></div>
+  <div id="opts"></div>
+</div>
+<div id="controls">
+  <button id="L">◀</button>
+  <button id="R">▶</button>
+  <button id="act">ACTION</button>
+</div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const hud=document.getElementById('hud'),msg=document.getElementById('msg');
+const box=document.getElementById('box'),opts=document.getElementById('opts'),prompt_=document.getElementById('prompt');
+const GROUND=270;
+let level=1,step=0,state='play',pressCount=0;
+const nikhil={x:60,name:'Nikhil',eat:false};
+let npc={x:560,name:'Amit'};
+let banana={x:545,held:true,eaten:false};
+let keys={l:false,r:false};
+
+const levels={
+ 1:{npc:'Amit',hint:'Amit ke paas jao, ACTION dabake uska kela lo aur khao!',
+    say:'Nikhil kya bole?',
+    right:'Maine Amit ka kela kha liya',
+    wrong:['Kela mera nahi tha, par mujhe nahi pata','Amit ne mujhe kela khilaya','Maine kuch nahi kiya']},
+ 2:{npc:'Amit',hint:'Amit ke paas jao aur ACTION dabake 5 baar pair pado!',
+    say:'Nikhil kya bole?',
+    right:'Papa sorry',
+    wrong:['Amit tu bada aadmi nahi hai','Main nahi manunga','Chal hat']},
+ 3:{npc:'Abhishek',hint:'Abhishek ke paas jao!',
+    say:'Nikhil kya bole?',
+    right:'Jahanpanah tusi great ho tofa kabul karu',
+    wrong:['Abhishek tu kaun hai?','Mujhe ghar jana hai','Main tera tofa nahi lunga']}
+};
+
+function startLevel(n){
+  level=n;step=0;state='play';pressCount=0;
+  nikhil.x=60;nikhil.eat=false;
+  npc.name=levels[n].npc;npc.x=560;
+  banana={x:545,held:true,eaten:false};
+  box.style.display='none';
+  msg.textContent=levels[n].hint;
+  updateHud();
+}
+function updateHud(){hud.textContent='Level '+level+' / 3';}
+
+function stick(x,name,opts={}){
+  const y=GROUND;
+  ctx.strokeStyle='#222';ctx.lineWidth=4;ctx.lineCap='round';
+  ctx.beginPath();ctx.arc(x,y-62,12,0,7);ctx.stroke();           // head
+  ctx.beginPath();ctx.moveTo(x,y-50);ctx.lineTo(x,y-22);ctx.stroke(); // body
+  ctx.beginPath();ctx.moveTo(x,y-22);ctx.lineTo(x-12,y);ctx.moveTo(x,y-22);ctx.lineTo(x+12,y);ctx.stroke(); // legs
+  const bow=opts.bow;
+  ctx.beginPath();
+  if(bow){ctx.moveTo(x,y-44);ctx.lineTo(x+16,y-8);} else {ctx.moveTo(x,y-44);ctx.lineTo(x-16,y-30);ctx.moveTo(x,y-44);ctx.lineTo(x+16,y-30);}
+  ctx.stroke();
+  ctx.fillStyle='#000';ctx.font='bold 15px Arial';ctx.textAlign='center';
+  ctx.fillText(name,x,y-82);
+}
+function drawBanana(x,y){
+  ctx.fillStyle='#ffe135';ctx.strokeStyle='#b58900';ctx.lineWidth=2;
+  ctx.beginPath();ctx.ellipse(x,y,16,6,-0.5,0,7);ctx.fill();ctx.stroke();
+}
+function draw(){
+  ctx.clearRect(0,0,700,320);
+  ctx.fillStyle='#5fbf5a';ctx.fillRect(0,GROUND,700,50);
+  // Nikhil
+  stick(nikhil.x,nikhil.name,{bow:state==='bow'});
+  // NPC
+  stick(npc.x,npc.name);
+  // banana
+  if(level===1 && !banana.eaten){
+    if(banana.held) drawBanana(npc.x-18,GROUND-34);
+    else drawBanana(nikhil.x+14,GROUND-60);
+  }
+  if(level===2 && pressCount>0){
+    ctx.fillStyle='#000';ctx.font='16px Arial';ctx.textAlign='center';
+    ctx.fillText('Pair: '+pressCount+'/5',nikhil.x,GROUND-100);
+  }
+  if(state==='end'){
+    ctx.fillStyle='rgba(0,0,0,.65)';ctx.fillRect(0,0,700,320);
+    ctx.fillStyle='#ffd54a';ctx.font='bold 36px Arial';ctx.textAlign='center';
+    ctx.fillText('GAME OVER - Nikhil jeet gaya! 🎉',350,150);
+    ctx.fillStyle='#fff';ctx.font='20px Arial';ctx.fillText('Phir se khelne ke liye ACTION dabao',350,190);
+  }
+}
+function near(){return Math.abs(nikhil.x-npc.x)<=70;}
+
+function loop(){
+  if(state==='play'){
+    if(keys.l)nikhil.x-=3;
+    if(keys.r)nikhil.x+=3;
+    nikhil.x=Math.max(20,Math.min(680,nikhil.x));
+    if(nikhil.x>npc.x-45) nikhil.x=npc.x-45;
+  }
+  draw();requestAnimationFrame(loop);
+}
+
+function action(){
+  if(state==='end'){startLevel(1);return;}
+  if(state!=='play')return;
+  if(!near()){msg.textContent='Pehle '+npc.name+' ke paas jao!';return;}
+  if(level===1){
+    banana.held=false;
+    setTimeout(()=>{banana.eaten=true;msg.textContent='Nikhil ne kela kha liya! 🍌';askPhrase();},500);
+    state='wait';
+  } else if(level===2){
+    pressCount++;
+    if(pressCount>=5){askPhrase();}
+  } else if(level===3){
+    askPhrase();
+  }
+}
+function askPhrase(){
+  state='say';
+  prompt_.textContent=levels[level].say;
+  const L=levels[level];
+  const list=[L.right,...L.wrong].sort(()=>Math.random()-0.5);
+  opts.innerHTML='';
+  list.forEach(t=>{
+    const b=document.createElement('button');
+    b.textContent=t;
+    b.style.cssText='display:block;width:100%;margin:6px 0;font-size:17px;padding:12px';
+    b.addEventListener('click',()=>submit(t));
+    opts.appendChild(b);
+  });
+  box.style.display='block';
+}
+function submit(choice){
+  if(state!=='say')return;
+  if(choice===levels[level].right){
+    box.style.display='none';
+    if(level===3){state='end';msg.textContent='';return;}
+    msg.textContent='Level '+level+' complete! ✅';
+    state='wait';
+    setTimeout(()=>startLevel(level+1),1200);
+  } else {
+    msg.textContent='Galat option! Dobara chuno.';
+  }
+}
+function hold(id,k){
+  const b=document.getElementById(id);
+  const on=e=>{e.preventDefault();keys[k]=true;},off=e=>{e.preventDefault();keys[k]=false;};
+  b.addEventListener('touchstart',on);b.addEventListener('touchend',off);b.addEventListener('touchcancel',off);
+  b.addEventListener('mousedown',on);b.addEventListener('mouseup',off);b.addEventListener('mouseleave',off);
+}
+hold('L','l');hold('R','r');
+document.getElementById('act').addEventListener('click',action);
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft')keys.l=true;
+  if(e.key==='ArrowRight')keys.r=true;
+  if(e.key===' '||e.key==='Enter')action();
+});
+addEventListener('keyup',e=>{if(e.key==='ArrowLeft')keys.l=false;if(e.key==='ArrowRight')keys.r=false;});
+
+startLevel(1);loop();
+</script>
+</body>
+</html>
